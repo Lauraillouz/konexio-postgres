@@ -16,9 +16,12 @@ const checkRights = async (req, res, next) => {
       });
     }
 
-    const user = await Postgres.query({ _id: data.id });
+    const user = await Postgres.query(
+      "SELECT * FROM users_crm WHERE users_crm.id=$1",
+      [data.id]
+    );
 
-    if (user.category === "admin") {
+    if (user.rows[0].role === "admin") {
       next();
     } else {
       res.status(403).json({

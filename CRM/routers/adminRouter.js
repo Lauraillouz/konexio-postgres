@@ -8,6 +8,6 @@ const UserController = require("../controllers/userController");
 const checkRights = require("../middlewares/checkRights");
 
 // Routes
-router.delete("/:id", /* checkRights, */ UserController.deleteUser);
+router.delete("/:id", checkRights, UserController.deleteUser);
 
 module.exports = router;
