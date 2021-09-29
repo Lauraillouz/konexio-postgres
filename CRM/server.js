@@ -7,7 +7,6 @@ const dotenv = require("dotenv");
 dotenv.config({
   path: "./config.env",
 });
-const { Pool } = require("pg");
 
 // Routers
 const registerRouter = require("./routers/registerRouter");

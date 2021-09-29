@@ -1,4 +1,6 @@
 const jwt = require("jsonwebtoken");
+const { Pool } = require("pg");
+const Postgres = new Pool({ ssl: { rejectUnauthorized: false } });
 
 const killCookie = require("../utils/killCookie");
 
@@ -13,19 +15,19 @@ const checkRights = async (req, res, next) => {
         message: "Access denied. You token is invalid",
       });
     }
+
+    const user = await Postgres.query({ _id: data.id });
+
+    if (user.category === "admin") {
+      next();
+    } else {
+      res.status(403).json({
+        message: "Access denied. Admin rights are required for this action.",
+      });
+    }
   } catch (err) {
-    res.status(401).json({
+    res.status(404).json({
       message: err,
-    });
-  }
-
-  const user = await User.findOne({ _id: data.id });
-
-  if (user.category === "admin") {
-    next();
-  } else {
-    res.status(403).json({
-      message: "Access denied. Admin rights are required for this action.",
     });
   }
 };
