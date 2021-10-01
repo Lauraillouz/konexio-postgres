@@ -1,16 +1,24 @@
+const { Pool } = require("pg");
+const Postgres = new Pool({ ssl: { rejectUnauthorized: false } });
+
 const getContacts = async (req, res) => {
   const data = req.cookies.jwtData;
   const query = req.query;
   const queryKey = Object.keys(query);
 
   try {
-    const user = await User.findOne({ _id: data.id });
-    const userId = user._id;
-    console.log(user);
+    const user = await Postgres.query(
+      "SELECT * FROM users_crm WHERE users_crm.id=$1",
+      [data.id]
+    );
+    const userId = user.rows[0].id;
 
-    const contacts = await Contact.find({ userId });
+    const contacts = await Postgres.query(
+      "SELECT * FROM contacts_crm INNER JOIN users_contacts ON contacts_crm.id=users_contacts.contacts_crm_id INNER JOIN users_crm ON users_crm.id=users_contacts.users_crm_id WHERE users_crm.id=$1",
+      [userId]
+    );
 
-    const numberOfContacts = contacts.length;
+    const numberOfContacts = contacts.rows.length;
 
     if (queryKey.length !== 0) {
       const selectedContacts = contacts.find((contact) => {
@@ -37,7 +45,7 @@ const getContacts = async (req, res) => {
 
     return res.status(200).json({
       message: "Access granted",
-      data: contacts,
+      data: contacts.rows,
       nb: numberOfContacts,
     });
   } catch (err) {
@@ -50,29 +58,43 @@ const getContacts = async (req, res) => {
 const newContact = async (req, res) => {
   const contactInfo = req.body;
   const data = req.cookies.jwtData;
+  try {
+    const contact = await Postgres.query(
+      "SELECT * FROM contacts_crm WHERE email=$1",
+      [contactInfo.email]
+    );
 
-  const contact = await Contact.findOne({ email: contactInfo.email });
+    if (contact.rows.length === 0) {
+      const newContact = await Postgres.query(
+        "INSERT INTO contacts_crm(name, email, description, category) VALUES($1, $2, $3, $4)",
+        [
+          contactInfo.name,
+          contactInfo.email,
+          contactInfo.description,
+          contactInfo.category,
+        ]
+      );
+      const contactId = await Postgres.query(
+        "SELECT * FROM contacts_crm WHERE email=$1",
+        [contactInfo.email]
+      );
 
-  if (!contact) {
-    try {
-      const newContact = await Contact.create({
-        userId: data.id,
-        name: contactInfo.name,
-        email: contactInfo.email,
-        description: contactInfo.description,
-      });
+      await Postgres.query(
+        "INSERT INTO users_contacts(users_crm_id, contacts_crm_id) VALUES($1, $2)",
+        [data.id, contactId.rows[0].id]
+      );
+
       return res.status(201).json({
         message: "New contact has successfully been created",
-        data: newContact,
       });
-    } catch (err) {
-      return res.status(400).json({
-        message: err,
+    } else {
+      res.status(403).json({
+        message: "This contact already exists",
       });
     }
-  } else {
-    res.status(403).json({
-      message: "This contact already exists",
+  } catch (err) {
+    return res.status(400).json({
+      message: err,
     });
   }
 };
@@ -119,7 +141,7 @@ const modifyContact = async (req, res) => {
 const deleteContact = async (req, res) => {
   const { email } = req.body;
 
-  const contact = await Contact.findOne({ email });
+  const contact = await Postgres.query("");
 
   if (contact) {
     try {

@@ -1,4 +1,6 @@
 const jwt = require("jsonwebtoken");
+const { Pool } = require("pg");
+const Postgres = new Pool({ ssl: { rejectUnauthorized: false } });
 
 const killCookie = require("../utils/killCookie");
 
@@ -14,8 +16,12 @@ const protectData = async (req, res, next) => {
       });
     }
 
-    const user = await User.findOne({ _id: data.id });
-    if (user) {
+    const user = await Postgres.query(
+      "SELECT * FROM users_crm WHERE users_crm.id=$1",
+      [data.id]
+    );
+
+    if (user.rows.length !== 0) {
       next();
     } else {
       res.status(403).json({
@@ -23,7 +29,7 @@ const protectData = async (req, res, next) => {
       });
     }
   } catch (err) {
-    return res.status(401).json({
+    return res.status(404).json({
       message: err,
     });
   }
